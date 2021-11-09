@@ -41,7 +41,8 @@ function Var:preflush(dest_slot)
 end
 
 function Var:flush(dest_slot)
-  if self.register then
+  -- HMM
+  if self.register and dest_slot ~= self.src_slot then
     self.parent.asm.store(self.register, 'dp', dest_slot)
   end
 end
