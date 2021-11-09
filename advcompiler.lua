@@ -4,6 +4,7 @@
 
 local stackanalysis = require("language/brainforth/stackanalysis")
 local primitives = require("language/brainforth/stackfuncs").words
+local Queue = require("queue").Queue
 
 local m = {}
 
@@ -112,6 +113,10 @@ local function should_inline(ctx, wordname)
   return (#word.body < ctx.max_inline_size) and (not word.conditional) and (not is_cyclic(word))
 end
 
+local function request_compile(ctx, wordname)
+  if not ctx.compiled[wordname] then ctx.compile_queue:push(wordname) end
+end
+
 local function TAIL_COND_CALL(idepth, ctx, asm, stack, wordname)
   if idepth > 0 then error("Cannot tail call out of an inline that's ridiculous!") end
   ctx.cond_idx = (ctx.cond_idx or 0) + 1
@@ -128,6 +133,7 @@ local function TAIL_COND_CALL(idepth, ctx, asm, stack, wordname)
     stack:flush()
     asm.jalr('zero', 'ra', 0)
   else
+    request_compile(ctx, wordname)
     asm.jal('zero', sanitize(wordname))
   end
   asm.label(skip_label)
@@ -140,9 +146,11 @@ local function CALL(idepth, ctx, asm, stack, wordname, tail)
   elseif idepth < ctx.max_inline_depth and should_inline(ctx, wordname) then
     inline_word(idepth+1, ctx, asm, stack, wordname)
   elseif tail then
+    request_compile(ctx, wordname)
     stack:flush()
     asm.jal('zero', sanitize(wordname))
   else -- non-tail, non-inline call
+    request_compile(ctx, wordname)
     stack:flush()
     PUSH_RETADDR(asm)
     asm.jal('ra', sanitize(wordname))
@@ -155,6 +163,7 @@ inline_word = function(idepth, ctx, asm, stack, wordname)
   local bodysize = #word.body
   for idx, w in ipairs(word.body) do
     if type(w) == 'table' then
+      stack:flush()
       compile_special(ctx, asm, w)
     elseif tonumber(w) then
       stack:push(tonumber(w))
@@ -224,7 +233,9 @@ function m.compile(ast, asm)
   asm.halt()
 
   local ctx = {
-    asm = asm, 
+    asm = asm,
+    compiled = {},
+    compile_queue = Queue(),
     words = {}, 
     cond_idx = 0, 
     memmap = ast.memmap,
@@ -238,8 +249,20 @@ function m.compile(ast, asm)
 
   link_children(ctx)
 
-  for wname, wordinfo in pairs(ctx.words) do
-    compile_subword(ctx, wname, wordinfo)
+  if ast.meta.dead_code_elimination ~= "false" then
+    ctx.compile_queue:push("ENTRY")
+  else
+    for wname, _ in pairs(ctx.words) do
+      ctx.compile_queue:push(wname)
+    end
+  end
+
+  while ctx.compile_queue:length() > 0 do
+    local wname = ctx.compile_queue:pop()
+    if not ctx.compiled[wname] then
+      ctx.compiled[wname] = true
+      compile_subword(ctx, wname, ctx.words[wname])
+    end
   end
 end
 

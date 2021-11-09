@@ -152,8 +152,21 @@ function Stack:flush()
   self:_restore_registers()
 end
 
+function Stack:_find_free_register()
+  for idx, reg in ipairs(self._temp_registers) do
+    if self.registers[reg] then return reg end
+  end
+  return nil
+end
+
 function Stack:claim_register()
-  local reg = next(self.registers)
+  local reg = self:_find_free_register()
+  -- HMM need to consider whether this might cause problems w/
+  -- some patterns
+  -- if not reg then 
+  --   self:cleanup()
+  --   reg = self:_find_free_register()
+  -- end
   if not reg then error("Ran out of temp registers!") end
   self.registers[reg] = nil
   return reg
