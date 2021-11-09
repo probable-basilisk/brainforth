@@ -3,6 +3,8 @@
 -- implements a very smart dialect of forth
 
 local sutil = require("text/utils")
+local stack = require("language/brainforth/stackanalysis")
+local stackfuncs = require("language/brainforth/stackfuncs")
 
 local m = {}
 
@@ -91,12 +93,15 @@ inline["over"] = function(asm)
 end
 
 inline["rot"] = function(asm)
+  --  -3  -2  -1
+  -- bot addr top <-
+  -- addr top bot
   asm.load('bot', 'dp', -3)
   asm.load('addr', 'dp', -2)
   asm.load('top', 'dp', -1)
-  asm.store('top', 'dp', -3)
-  asm.store('bot', 'dp', -2)
-  asm.store('addr', 'dp', -1)  
+  asm.store('addr', 'dp', -3)
+  asm.store('top', 'dp', -2)
+  asm.store('bot', 'dp', -1)
 end
 
 inline["pick"] = function(asm)

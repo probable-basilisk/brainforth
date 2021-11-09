@@ -126,9 +126,10 @@ end
 
 words["rot"] = function(asm, stack)
   local v3, v2, v1 = stack:get(3), stack:get(2), stack:get(1)
-  stack:set(3, v1)
-  stack:set(2, v3)
-  stack:set(1, v2)
+  --    2   1   3
+  stack:set(3, v2)
+  stack:set(2, v1)
+  stack:set(1, v3)
 end
 
 words["drop"] = function(asm, stack)
