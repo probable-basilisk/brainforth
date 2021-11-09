@@ -1,6 +1,6 @@
 local m = {}
 local words = {}
-local m.words = words
+m.words = words
 
 local function is_const(v)
   return type(v) == 'number' and v
@@ -35,7 +35,7 @@ cfuncs["and"] = function(a,b) return bit.band(a, b) end
 cfuncs["or"] = function(a,b) return bit.bor(a, b) end
 cfuncs["xor"] = function(a,b) return bit.xor(a, b) end
 
-local function btonum(b) if b then return 1 else return 0 end
+local function btonum(b) return (b and 1) or 0 end
 cfuncs["<"] = function(a,b) return btonum(a < b) end
 cfuncs[">"] = function(a,b) return btonum(a > b) end
 cfuncs["<="] = function(a,b) return btonum(a <= b) end
@@ -66,7 +66,7 @@ local function make_binary_generator(op_name, reorder_op, specials)
     local res = stack:create_var()
     if constval_a and constval_b then
       -- have to eval a constant? is there a better way?
-      res = eval_constant(op_name, constval_a, constval_b))
+      res = eval_constant(op_name, constval_a, constval_b)
     elseif reorder_op and constval_a and (not constval_b) then
       asm[reorder_op](res:reg(), b:reg(), constval_a)
     elseif constval_b then
@@ -117,10 +117,10 @@ words["pick"] = function(asm, stack)
     -- the pick position, we have no choice but to flush
     -- the stack and do it for real
     stack:flush()
-    asm.load('top', 'dp', -1)
-    asm.sub('top', 'dp', 'top')
-    asm.load('top', 'top', -2)
-    asm.store('top', 'dp', -1)
+    asm.load('t0', 'dp', -1)
+    asm.sub('t0', 'dp', 't0')
+    asm.load('t0', 't0', -2)
+    asm.store('t0', 'dp', -1)
   end
 end
 
@@ -144,19 +144,27 @@ end
 
 words["!"] = function(asm, stack) -- store
   local addr = stack:pop()
-  local val = stack:pop()
-  asm.store(val:reg(), addr:reg(), 0)
+  local val = stack:pop_in_register()
+  if type(addr) == 'number' then
+    asm.store(val:reg(), 'zero', addr)
+  else
+    asm.store(val:reg(), addr:reg(), 0)
+  end
 end
 
 words["@"] = function(asm, stack) -- fetch
   local addr = stack:pop()
   local res = stack:create_var()
-  asm.load(res:reg(), addr:reg(), 0)
+  if type(addr) == 'number' then
+    asm.load(res:reg(), 'zero', addr)
+  else
+    asm.load(res:reg(), addr:reg(), 0)
+  end
   stack:push(res)
 end
 
 words[">r"] = function(asm, stack) -- data stack to return stack
-  local val = stack:pop()
+  local val = stack:pop_in_register()
   asm.store(val:reg(), 'sp', 0)
   asm.addi('sp', 'sp', 1)
 end
@@ -186,6 +194,28 @@ words["coreid"] = function(asm, stack)
   local res = stack:create_var()
   asm.corid(res:reg())
   stack:push(res)
+end
+
+local function PUSH_RETADDR(asm)
+  asm.store('ra', 'sp', 0)
+  asm.addi('sp', 'sp', 1)
+end
+
+local function POP_RETADDR(asm)
+  asm.addi('sp', 'sp', -1)
+  asm.load('ra', 'sp', 0)
+end
+
+words["exec"] = function(asm, stack, tail)
+  local addr = stack:pop():reg()
+  stack:flush()
+  if tail then
+    asm.jalr('zero', addr, 0)
+  else
+    PUSH_RETADDR(asm)
+    asm.jalr('ra', addr, 0)
+    POP_RETADDR(asm)
+  end
 end
 
 return m

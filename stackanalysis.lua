@@ -20,7 +20,12 @@ function Var:reg()
   return self.register
 end
 
-function Var:flush(dest_slot)
+function Var:li(val)
+  self.parent.asm.li(self:reg(), val)
+  return self
+end
+
+function Var:preflush(dest_slot)
   assert(dest_slot)
   if not self.register then
     if dest_slot == self.src_slot then
@@ -33,7 +38,12 @@ function Var:flush(dest_slot)
       error("Tried to flush Var with no associated register!") 
     end
   end
-  self.parent.asm.store(self.register, 'dp', dest_slot)
+end
+
+function Var:flush(dest_slot)
+  if self.register then
+    self.parent.asm.store(self.register, 'dp', dest_slot)
+  end
 end
 
 function Var:release()
@@ -89,7 +99,7 @@ function Stack:get(idx)
   return self.stack[abs_idx]
 end
 
-function Stack:put(idx, v)
+function Stack:set(idx, v)
   local abs_idx = self.dp - idx
   self.stack[abs_idx] = v
 end
@@ -99,18 +109,34 @@ function Stack:pop()
   return self:get(0)
 end
 
+-- forces the popped value to be in a register
+function Stack:pop_in_register()
+  local res = self:pop()
+  if type(res) ~= 'number' then return res end
+  return self:create_var():li(res)
+end
+
 function Stack:push(val)
-  self:put(0, val)
+  print("Pushing", val)
+  self:set(0, val)
   self.dp = self.dp + 1
 end
 
 function Stack:flush()
+  print("flushing")
+  self.asm.comment("flush")
+  -- preflush: complete all loads first
+  for abs_idx, val in pairs(self.stack) do
+    if type(val) == 'table' and abs_idx < self.dp then
+      val:preflush(abs_idx)
+    end
+  end
   for abs_idx, val in pairs(self.stack) do
     -- only write values that are actually in the stack
     if abs_idx < self.dp then
       if type(val) == 'number' then
-        self.asm.li('top', val)
-        self.asm.store('top', 'dp', abs_idx)
+        self.asm.li('t0', val)
+        self.asm.store('t0', 'dp', abs_idx)
       else
         val:flush(abs_idx)
       end

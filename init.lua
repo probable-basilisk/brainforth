@@ -3,8 +3,6 @@
 -- implements a very smart dialect of forth
 
 local sutil = require("text/utils")
-local stack = require("language/brainforth/stackanalysis")
-local stackfuncs = require("language/brainforth/stackfuncs")
 
 local m = {}
 
@@ -189,7 +187,7 @@ local function TAIL_COND_CALL(ctx, asm, wordname)
   POP_DATA(asm, 'top')
   asm.beq('zero', 'top', skip_label)
   if m.inline[wordname] then 
-    m.inline[wordname](asm, tail)
+    m.inline[wordname](asm, true)
     asm.jalr('zero', 'ra', 0)
   else
     asm.jal('zero', sanitize(wordname))
@@ -327,7 +325,7 @@ function m.print_ast(ast)
   return table.concat(frags, "\n")
 end
 
-function m.compile(ast, asm)
+function m.compile_old(ast, asm)
   local ctx = {words = {}, cond_idx = 0, memmap = ast.memmap}
   for wname, body in pairs(ast.words) do
     m.compile_subword(ctx, wname, body)
@@ -361,6 +359,14 @@ function m.compile(ast, asm)
       word.gen(ctx, asm)
       asm.jalr('zero', 'ra', 0) -- ???
     end
+  end
+end
+
+function m.compile(ast, asm)
+  if ast.meta.new_compiler and ast.meta.new_compiler ~= "false" then
+    require("language/brainforth/advcompiler").compile(ast, asm)
+  else
+    m.compile_old(ast, asm)
   end
 end
 
