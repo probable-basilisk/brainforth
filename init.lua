@@ -330,6 +330,7 @@ function m.compile(ast, asm)
 
   -- ra is register 1 -- return address
   -- sp is register 2 -- one past the top of the return stack
+  asm.comment('BRAINFORTH')
   asm.alias('dp', 3)  -- one past the top of the data stack
   asm.alias('top', 4) -- it's just a temp value
   asm.alias('bot', 5) -- it's just a temp value
