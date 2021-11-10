@@ -117,11 +117,12 @@ local function request_compile(ctx, wordname)
 end
 
 local function CALL(idepth, ctx, asm, stack, wordname, tail)
+  if tail then print("Compiling tail call: " .. wordname) end
   if primitives[wordname] then 
     primitives[wordname](asm, stack, tail)
     stack:cleanup()
   elseif idepth < ctx.max_inline_depth and should_inline(ctx, wordname) then
-    inline_word(idepth+1, ctx, asm, stack, wordname)
+    inline_word(idepth+1, ctx, asm, stack, wordname, tail)
   elseif tail then
     request_compile(ctx, wordname)
     stack:flush()
@@ -175,7 +176,7 @@ local function maybe_elide_exec(w, stack)
   end
 end
 
-inline_word = function(idepth, ctx, asm, stack, wordname)
+inline_word = function(idepth, ctx, asm, stack, wordname, inline_tail)
   local word = ctx.words[wordname]
   local bodysize = #word.body
   for idx, w in ipairs(word.body) do
@@ -208,7 +209,7 @@ inline_word = function(idepth, ctx, asm, stack, wordname)
       end
       TAIL_COND_CALL(idepth, ctx, asm, stack, w:sub(2,-1))
     else
-      CALL(idepth, ctx, asm, stack, w, idx == bodysize)
+      CALL(idepth, ctx, asm, stack, w, inline_tail and idx == bodysize)
     end
   end
 end
@@ -218,10 +219,12 @@ local function compile_subword(ctx, wordname, wordinfo)
   local asm = ctx.asm
   local stack = stackanalysis.Stack(asm, ctx.temp_registers)
 
+  print("---- Compiling " .. wordname .. " ----------")
+
   ctx.cond_idx = 0
   ctx.cur_word = safe_name
   asm.label(safe_name)
-  inline_word(0, ctx, asm, stack, wordname)
+  inline_word(0, ctx, asm, stack, wordname, true)
   stack:flush()
   asm.jalr('zero', 'ra', 0)
 end
