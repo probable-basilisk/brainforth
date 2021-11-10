@@ -370,4 +370,94 @@ function m.compile(ast, asm)
   end
 end
 
+local debugger = {}
+
+function debugger:install(emu, log)
+  self.emu = emu
+  self.print = log
+end
+
+function debugger:has_hit_breakpoint()
+  for idx = 0, self.emu.raw:get_enabled_core_count()-1 do
+    if self.emu.cores[idx].status == 0x40000000 then
+      return idx
+    end
+  end
+  return false
+end
+
+function debugger:on_io()
+  local broke_core = self:has_hit_breakpoint()
+  if broke_core then
+    self.emu:set_fullscreen(false, true) -- no fullscreen, yes pause
+    self.print(("Core [%d] triggered breakpoint"):format(broke_core))
+  end
+end
+
+local FORMATTERS = {
+  ascii = function(v)
+    if v > 0 and v <= 128 then
+      return string.char(v)
+    else
+      return ("\\x%02x"):format(v)
+    end
+  end,
+  hex = function(v) return ("%x"):format(v) end,
+  dec = tostring
+}
+
+function debugger:_print_stack(register, core, format, depth)
+  if not self.emu then 
+    self.print("Not attached to VM")
+    return
+  end
+  local spos = self.emu.cores[core or 0].registers[register]
+  depth = depth or 8
+  format = format or tostring
+  if type(format) == 'string' then format = FORMATTERS[format] end
+  local frags = {}
+  for mempos = spos-depth, spos-1 do
+    table.insert(frags, format(self.emu.memory[mempos]))
+  end
+  table.insert(frags, (" > %04x"):format(spos))
+  self.print(table.concat(frags, " "))
+end
+
+function debugger:continue(core)
+  if not self.emu then
+    self.print("Not attached to VM")
+    return
+  end
+  if not core then 
+    self.emu.raw:resume(0x40000000)
+    self.emu:pause(false)
+    return
+  end
+  if self.emu.cores[core].status ~= 0x40000000 then
+    self.print("Core is not at a breakpoint.")
+    return
+  end
+  self.emu.raw:resume_core(core, 0x40000000)
+  self.emu:pause(false)
+end
+
+function debugger:datastack(core, format, depth)
+  return self:_print_stack(3, core, format, depth)
+end
+debugger.ds = debugger.datastack
+
+function debugger:returnstack(core, format, depth)
+  return self:_print_stack(2, core, format, depth)
+end
+debugger.rs = debugger.returnstack
+
+function m.get_debugger(meta, macros)
+  debugger.meta, debugger.macros = meta, macros
+  return debugger
+end
+
+function m.get_tools()
+  return debugger
+end
+
 return m

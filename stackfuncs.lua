@@ -183,10 +183,25 @@ words["r@"] = function(asm, stack) -- push return on to data stack
 end
 
 words["sync"] = function(asm, stack)
+  stack:flush()
   asm.sync()
 end
 
+words["hardbreak"] = function(asm, stack)
+  stack:flush()
+  asm.li('t0', 0x40000000)
+  asm.yield('t0')
+end
+
+words["softbreak"] = function(asm, stack)
+  asm.li('t0', 0x40000000)
+  asm.yield('t0')
+end
+
+words["breakpoint"] = words["hardbreak"]
+
 words["bye"] = function(asm, stack)
+  stack:flush()
   asm.halt()
 end
 
