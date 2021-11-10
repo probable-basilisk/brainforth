@@ -52,6 +52,36 @@ function Var:release()
   self.parent:release_register(self.register) 
 end
 
+local Symbol = class("Symbol")
+function Symbol:init(parent, sym, resolver)
+  self.parent = parent
+  self.sym = sym
+  self.resolver = resolver
+  self.register = nil
+end
+
+function Symbol:reg()
+  if not self.register then
+    self.register = self.parent:claim_register()
+    self.resolver(self.parent.asm, self.sym, self.register)
+  end
+  return self.register
+end
+
+function Symbol:preflush(dest_slot)
+  assert(dest_slot)
+  self:reg()
+end
+
+function Symbol:flush(dest_slot)
+  self.parent.asm.store(self.register, 'dp', dest_slot)
+end
+
+function Symbol:release()
+  if not self.register then return end
+  self.parent:release_register(self.register) 
+end
+
 local Stack = class("Stack")
 m.Stack = Stack
 
@@ -90,6 +120,12 @@ function Stack:create_var(abs_idx)
   local var = Var(self, abs_idx)
   self.vars[var] = true
   return var
+end
+
+function Stack:create_symbol(sym, resolver)
+  local sym = Symbol(self, sym, resolver)
+  self.vars[sym] = true
+  return sym
 end
 
 function Stack:get(idx)

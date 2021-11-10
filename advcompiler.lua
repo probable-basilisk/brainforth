@@ -82,6 +82,7 @@ end
 
 local function analyze_word(ctx, wordname, body)
   ctx.words[wordname] = {
+    name = wordname,
     wordname = wordname,
     body = body,
     label_name = sanitize(wordname),
@@ -101,11 +102,6 @@ local function compile_special(ctx, special)
   end
 end
 
-local function PUSH_FUNCPTR(asm, stack, word)
-  local val = stack:create_var()
-  asm.aipc(val:reg(), word.label_name)
-end
-
 local inline_word
 
 local function should_inline(ctx, wordname)
@@ -114,7 +110,10 @@ local function should_inline(ctx, wordname)
 end
 
 local function request_compile(ctx, wordname)
+  print("requesting compile for: " .. wordname)
+  local word = assert(ctx.words[wordname])
   if not ctx.compiled[wordname] then ctx.compile_queue:push(wordname) end
+  return word.label_name
 end
 
 local function TAIL_COND_CALL(idepth, ctx, asm, stack, wordname)
@@ -180,7 +179,8 @@ inline_word = function(idepth, ctx, asm, stack, wordname)
       if not refword then 
         error("Tried to produce function pointer for unknown word: " .. w:sub(2,-1))
       end
-      PUSH_FUNCPTR(asm, stack, refword)
+      --PUSH_FUNCPTR(asm, stack, refword)
+      stack:push(stack:create_symbol(refword, ctx.resolve_symbol))
     elseif w:sub(1,1) == '?' then
       if idx < bodysize - 1 then
         error("Conditional call only allowed in last or second-to-last position!")
@@ -243,6 +243,12 @@ function m.compile(ast, asm)
     max_inline_depth = tonumber(ast.meta.max_inline_depth or 2),
     max_inline_size = tonumber(ast.meta.max_inline_size or 10)
   }
+  ctx.resolve_symbol = function(asm, sym, register)
+    print("Resolving " .. sym.name)
+    request_compile(ctx, sym.name)
+    asm.aipc(register, sym.label_name)
+  end
+
   for wname, body in pairs(ast.words) do
     analyze_word(ctx, wname, body)
   end
