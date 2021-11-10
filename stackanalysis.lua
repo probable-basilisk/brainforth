@@ -128,6 +128,11 @@ function Stack:create_symbol(sym, resolver)
   return sym
 end
 
+function Stack:peek(idx)
+  local abs_idx = self.dp - idx
+  return self.stack[abs_idx]
+end
+
 function Stack:get(idx)
   local abs_idx = self.dp - idx
   if not self.stack[abs_idx] then
@@ -160,8 +165,7 @@ function Stack:push(val)
 end
 
 function Stack:flush()
-  print("flushing")
-  self.asm.comment("flush")
+  --self.asm.comment("flush v")
   -- preflush: complete all loads first
   for abs_idx, val in pairs(self.stack) do
     if type(val) == 'table' and abs_idx < self.dp then
@@ -182,6 +186,7 @@ function Stack:flush()
   if self.dp ~= 0 then
     self.asm.addi('dp', 'dp', self.dp)
   end
+  --self.asm.comment("flush ^")
   self.vars = {}
   self.stack = {}
   self.dp = 0

@@ -116,28 +116,6 @@ local function request_compile(ctx, wordname)
   return word.label_name
 end
 
-local function TAIL_COND_CALL(idepth, ctx, asm, stack, wordname)
-  if idepth > 0 then error("Cannot tail call out of an inline that's ridiculous!") end
-  ctx.cond_idx = (ctx.cond_idx or 0) + 1
-  local skip_label = "_" .. ctx.cur_word .. "_CND_" .. ctx.cond_idx
-  local condval = stack:pop():reg()
-  stack:flush() -- TODO: we could potentially clone the stack?
-  asm.beq('zero', condval, skip_label)
-  if primitives[wordname] then 
-    primitives[wordname](asm, stack, true)
-    stack:flush()
-    asm.jalr('zero', 'ra', 0)
-  elseif idepth < ctx.max_inline_depth and should_inline(ctx, wordname) then
-    inline_word(idepth+1, ctx, asm, stack, wordname)
-    stack:flush()
-    asm.jalr('zero', 'ra', 0)
-  else
-    request_compile(ctx, wordname)
-    asm.jal('zero', sanitize(wordname))
-  end
-  asm.label(skip_label)
-end
-
 local function CALL(idepth, ctx, asm, stack, wordname, tail)
   if primitives[wordname] then 
     primitives[wordname](asm, stack, tail)
@@ -157,10 +135,53 @@ local function CALL(idepth, ctx, asm, stack, wordname, tail)
   end
 end
 
+local function TAIL_COND_CALL(idepth, ctx, asm, stack, wordname)
+  if idepth > 0 then error("Cannot tail call out of an inline that's ridiculous!") end
+  ctx.cond_idx = (ctx.cond_idx or 0) + 1
+  local skip_label = "_" .. ctx.cur_word .. "_CND_" .. ctx.cond_idx
+  local condval = stack:pop() --:reg()
+  if type(condval) == 'number' then -- statically choose a branch
+    if condval ~= 0 then
+      CALL(idepth, ctx, asm, stack, wordname, true)
+    end
+    return
+  end
+  condval = condval:reg() -- SUBTLE! We need to force this into a register *before flushing*
+  stack:flush() -- TODO: we could potentially clone the stack?
+  asm.beq('zero', condval, skip_label)
+  if primitives[wordname] then 
+    primitives[wordname](asm, stack, true)
+    stack:flush()
+    asm.jalr('zero', 'ra', 0)
+  elseif idepth < ctx.max_inline_depth and should_inline(ctx, wordname) then
+    inline_word(idepth+1, ctx, asm, stack, wordname)
+    stack:flush()
+    asm.jalr('zero', 'ra', 0)
+  else
+    request_compile(ctx, wordname)
+    asm.jal('zero', sanitize(wordname))
+  end
+  asm.label(skip_label)
+end
+
+local function maybe_elide_exec(w, stack)
+  local top = stack:peek(1)
+  if top and type(top) == 'table' and top.sym then
+    local symname = top.sym.name
+    -- foo ?exec => ?foo
+    if w:sub(1,1) == "?" then symname = "?" .. symname end
+    stack:pop()
+    return symname
+  end
+end
+
 inline_word = function(idepth, ctx, asm, stack, wordname)
   local word = ctx.words[wordname]
   local bodysize = #word.body
   for idx, w in ipairs(word.body) do
+    if w == 'exec' or w == '?exec' then -- HACK to specially deal with exec
+      w = maybe_elide_exec(w, stack) or w 
+    end 
     if type(w) == 'table' then
       stack:flush()
       compile_special(ctx, asm, w)
