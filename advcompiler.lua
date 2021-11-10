@@ -50,7 +50,7 @@ local function link_children(ctx)
       elseif primitives[cname] then
         winfo.children[cname] = nil
       else
-        error("Unresolved word: " .. cname)
+        error("Unresolved word: [" .. cname .. "]")
       end
     end
   end
@@ -267,10 +267,10 @@ function m.compile(ast, asm)
     max_inline_depth = tonumber(ast.meta.max_inline_depth or 2),
     max_inline_size = tonumber(ast.meta.max_inline_size or 10)
   }
-  ctx.resolve_symbol = function(asm, sym, register)
+  ctx.resolve_symbol = function(sym)
     print("Resolving " .. sym.name)
     request_compile(ctx, sym.name)
-    asm.aipc(register, sym.label_name)
+    return sym.label_name
   end
 
   for wname, body in pairs(ast.words) do

@@ -163,6 +163,23 @@ words["@"] = function(asm, stack) -- fetch
   stack:push(res)
 end
 
+words["+@"] = function(asm, stack) -- fetch with offset
+  local addr = stack:pop()
+  local offset = stack:pop()
+  local res = stack:create_var()
+  if type(addr) == 'number' and type(offset) == 'number' then
+    asm.load(res:reg(), 'zero', addr + offset)
+  elseif type(addr) == 'number' then
+    asm.load(res:reg(), offset:reg(), addr)
+  elseif type(offset) == 'number' then
+    asm.load(res:reg(), addr:reg(), offset)
+  else
+    asm.add(res:reg(), offset:reg(), addr:reg())
+    asm.load(res:reg(), res:reg(), 0)
+  end
+  stack:push(res)
+end
+
 words[">r"] = function(asm, stack) -- data stack to return stack
   local val = stack:pop_in_register()
   asm.store(val:reg(), 'sp', 0)
@@ -219,6 +236,16 @@ end
 local function POP_RETADDR(asm)
   asm.addi('sp', 'sp', -1)
   asm.load('ra', 'sp', 0)
+end
+
+words["spawn"] = function(asm, stack)
+  local addr = stack:pop()
+  if type(addr) == 'number' or not addr.sym then 
+    error("Must spawn at a word pointer!") 
+  end
+  local arg = stack:pop_in_register()
+  local coreid = stack:pop_in_register()
+  asm.spawn(coreid:reg(), arg:reg(), addr:jumplabel())
 end
 
 words["exec"] = function(asm, stack, tail)

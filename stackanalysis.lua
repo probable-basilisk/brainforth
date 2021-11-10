@@ -60,10 +60,15 @@ function Symbol:init(parent, sym, resolver)
   self.register = nil
 end
 
+function Symbol:jumplabel()
+  return self.resolver(self.sym)
+end
+
 function Symbol:reg()
   if not self.register then
     self.register = self.parent:claim_register()
-    self.resolver(self.parent.asm, self.sym, self.register)
+    local label = self.resolver(self.sym)
+    self.parent.asm.aipc(self.register, label)
   end
   return self.register
 end
