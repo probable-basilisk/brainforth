@@ -423,14 +423,14 @@ function debugger:_print_stack(register, core, format, depth)
   self.print(table.concat(frags, " "))
 end
 
-function debugger:continue(core)
+function debugger:continue(unpause, core)
   if not self.emu then
     self.print("Not attached to VM")
     return
   end
   if not core then 
     self.emu.raw:resume(0x40000000)
-    self.emu:pause(false)
+    if unpause then self.emu:pause(false) end
     return
   end
   if self.emu.cores[core].status ~= 0x40000000 then
@@ -438,7 +438,7 @@ function debugger:continue(core)
     return
   end
   self.emu.raw:resume_core(core, 0x40000000)
-  self.emu:pause(false)
+  if unpause then self.emu:pause(false) end
 end
 
 function debugger:datastack(core, format, depth)
