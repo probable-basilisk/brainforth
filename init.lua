@@ -390,7 +390,9 @@ function debugger:on_io()
   local broke_core = self:has_hit_breakpoint()
   if broke_core then
     self.emu:set_fullscreen(false, true) -- no fullscreen, yes pause
-    self.print(("Core [%d] triggered breakpoint"):format(broke_core))
+    self.print(("Core [%d] triggered breakpoint @ %d"):format(
+      broke_core, self.emu.cores[broke_core].pc))
+    self:datastack(broke_core)
   end
 end
 
