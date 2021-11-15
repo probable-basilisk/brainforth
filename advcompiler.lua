@@ -245,7 +245,7 @@ function m.compile(ast, asm)
   local dstacksize = ast.meta.dstacksize or 256
   local rstacksize = ast.meta.rstacksize or 256
   local totalstack = dstacksize + rstacksize
-  asm.corid('t1')
+  asm.crid('t1')
   asm.muli('t1', 't1', totalstack)
   asm.li('t2', stacktop)
   asm.sub('t2', 't2', 't1')

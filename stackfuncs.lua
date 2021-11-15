@@ -224,7 +224,7 @@ end
 
 words["coreid"] = function(asm, stack)
   local res = stack:create_var()
-  asm.corid(res:reg())
+  asm.crid(res:reg())
   stack:push(res)
 end
 

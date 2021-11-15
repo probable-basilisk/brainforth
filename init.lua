@@ -129,7 +129,7 @@ inline["bye"] = function(asm)
 end
 
 inline["coreid"] = function(asm)
-  asm.corid('top')
+  asm.crid('top')
   PUSH_DATA(asm, 'top')
 end
 
@@ -343,7 +343,7 @@ function m.compile_old(ast, asm)
   local dstacksize = ast.meta.dstacksize or 256
   local rstacksize = ast.meta.rstacksize or 256
   local totalstack = dstacksize + rstacksize
-  asm.corid('top')
+  asm.crid('top')
   asm.muli('top', 'top', totalstack)
   asm.li('addr', stacktop)
   asm.sub('addr', 'addr', 'top')
