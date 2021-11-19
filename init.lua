@@ -121,11 +121,11 @@ inline["swap"] = function(asm)
 end
 
 inline["sync"] = function(asm)
-  asm.sync()
+  asm.kill('zero', 0x1)
 end
 
 inline["bye"] = function(asm)
-  asm.halt()
+  asm.kill('zero', 0)
 end
 
 inline["coreid"] = function(asm)
@@ -352,7 +352,7 @@ function m.compile_old(ast, asm)
   asm.li('top', 0)
   asm.li('addr', 0)
   asm.jal('zero', 'WORD_ENTRY')
-  asm.halt()
+  asm.kill('zero', 0)
   for _, word in pairs(ctx.words) do
     if word.needs_compile then
       asm.label(word.label_name)

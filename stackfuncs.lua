@@ -201,25 +201,23 @@ end
 
 words["sync"] = function(asm, stack)
   stack:flush()
-  asm.sync()
+  asm.kill('zero', 0x1)
 end
 
 words["hardbreak"] = function(asm, stack)
   stack:flush()
-  asm.li('t0', 0x40000000)
-  asm.yield('t0')
+  asm.kill('zero', 0x40000000)
 end
 
 words["softbreak"] = function(asm, stack)
-  asm.li('t0', 0x40000000)
-  asm.yield('t0')
+  asm.kill('zero', 0x40000000)
 end
 
 words["breakpoint"] = words["hardbreak"]
 
 words["bye"] = function(asm, stack)
   stack:flush()
-  asm.halt()
+  asm.kill('zero', 0)
 end
 
 words["coreid"] = function(asm, stack)

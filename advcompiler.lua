@@ -254,7 +254,7 @@ function m.compile(ast, asm)
   asm.li('t1', 0)
   asm.li('t2', 0)
   asm.jal('zero', 'WORD_ENTRY')
-  asm.halt()
+  asm.kill('zero', 0)
 
   local ctx = {
     asm = asm,
