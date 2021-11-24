@@ -72,6 +72,9 @@ local function make_binary_generator(op_name, reorder_op, specials)
     elseif constval_b then
       -- can save an op by doing this as an immediate operation
       asm[op_name .. "i"](res:reg(), a:reg(), constval_b)
+    elseif constval_a then -- rare case that only shows up for like `1 x -`
+      asm.li('t0', constval_a)
+      asm[op_name](res:reg(), 't0', b:reg())
     else
       asm[op_name](res:reg(), a:reg(), b:reg())
     end

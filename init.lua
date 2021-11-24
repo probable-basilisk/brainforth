@@ -363,7 +363,7 @@ function m.compile_old(ast, asm)
 end
 
 function m.compile(ast, asm)
-  if ast.meta.new_compiler and ast.meta.new_compiler ~= "false" then
+  if ast.meta.new_compiler ~= "false" then
     require("language/brainforth/advcompiler").compile(ast, asm)
   else
     m.compile_old(ast, asm)

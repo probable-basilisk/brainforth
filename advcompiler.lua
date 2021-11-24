@@ -229,6 +229,28 @@ local function compile_subword(ctx, wordname, wordinfo)
   asm.jalr('zero', 'ra', 0)
 end
 
+function m.standard_setup(asm, stacktop, totalstack, rstacksize, dstacksize)
+  asm.crid('t1')
+  asm.muli('t1', 't1', totalstack)
+  asm.li('t2', stacktop)
+  asm.sub('t2', 't2', 't1')
+  asm.subi('sp', 't2', rstacksize)
+  asm.subi('dp', 'sp', dstacksize)
+  asm.li('t1', 0)
+  asm.li('t2', 0)
+  asm.jal('zero', 'WORD_ENTRY')
+  asm.kill('zero', 0)
+end
+
+function m.embedded_setup(asm, stacktop, totalstack, rstacksize, dstacksize)
+  asm.li('t1', stacktop)
+  asm.subi('sp', 't1', rstacksize)
+  asm.subi('dp', 'sp', dstacksize)
+  asm.li('t1', 0)
+  asm.jal('zero', 'WORD_ENTRY')
+  asm.kill('zero', 0)
+end
+
 function m.compile(ast, asm)
   asm.comment('ADVANCED BRAINFORTH COMPILER 0.1')
   asm.alias('dp', 3)  -- one past the top of the data stack
@@ -245,16 +267,12 @@ function m.compile(ast, asm)
   local dstacksize = ast.meta.dstacksize or 256
   local rstacksize = ast.meta.rstacksize or 256
   local totalstack = dstacksize + rstacksize
-  asm.crid('t1')
-  asm.muli('t1', 't1', totalstack)
-  asm.li('t2', stacktop)
-  asm.sub('t2', 't2', 't1')
-  asm.subi('sp', 't2', rstacksize)
-  asm.subi('dp', 'sp', dstacksize)
-  asm.li('t1', 0)
-  asm.li('t2', 0)
-  asm.jal('zero', 'WORD_ENTRY')
-  asm.kill('zero', 0)
+
+  if ast.meta.embedded then
+    m.embedded_setup(asm, stacktop, totalstack, rstacksize, dstacksize)
+  else
+    m.standard_setup(asm, stacktop, totalstack, rstacksize, dstacksize)
+  end
 
   local ctx = {
     asm = asm,
