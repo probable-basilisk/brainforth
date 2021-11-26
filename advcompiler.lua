@@ -92,13 +92,13 @@ local function analyze_word(ctx, wordname, body)
   }
 end
 
-local function compile_special(ctx, special)
+local function compile_special(ctx, asm, special)
   -- only 'asm' special supported ATM
   if special[1] ~= "asm" then 
     error("Unsupported special " .. special[1])
   end
   for _, line in ipairs(special[2]) do
-    ctx.asm.emit(line)
+    asm.emit(line)
   end
 end
 

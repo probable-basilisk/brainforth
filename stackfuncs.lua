@@ -98,9 +98,15 @@ def_binop(">=", "geq", "leqi", {{"x", "x", 1}})
 def_binop("<=", "leq", "geqi", {{"x", "x", 1}})
 def_binop(">", "gt", "lti", {{"x", "x", 0}})
 def_binop("<", "lt", "gti", {{"x", "x", 0}})
-def_binop("&", "and", "andi", {{"x", "x", "x"}, {"x", 0, 0}, {0, "y", 0}})
-def_binop("|", "or", "ori", {{"x", "x", "x"}})
+def_binop("and", "and", "andi", {{"x", "x", "x"}, {"x", 0, 0}, {0, "y", 0}})
+def_binop("or", "or", "ori", {{"x", "x", "x"}})
 def_binop("xor", "xor", "xori", {{"x", "x", 0}, {"x", 0, "x"}, {0, "y", "y"}})
+
+words["clock"] = function(asm, stack)
+  local val = stack:create_var()
+  asm.clk(val:reg())
+  stack:push(val)
+end
 
 words["dup"] = function(asm, stack)
   stack:push(stack:get(1))
